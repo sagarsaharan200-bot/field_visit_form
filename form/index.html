@@ -177,7 +177,7 @@
     <label>Division <span class="req">*</span></label><select id="division" disabled><option value="">Select</option></select>
 
     <div class="sec-title">Details</div>
-    <label>Meter No. <span class="req">*</span></label><input id="meterNo" type="text" maxlength="10" placeholder="e.g. AL12345678">
+    <label>Meter No. <span class="req">*</span></label><input id="meterNo" type="text" maxlength="11" placeholder="e.g. AL12345678">
     <div style="font-size:12px;color:#666;margin-top:4px;">Format: 2 Letters (A-Z) + 7-8 Digits</div>
     <div id="dupWarning" style="color:red; font-size:12px; margin-top:5px; font-weight:bold;"></div>
 
@@ -651,7 +651,7 @@
   get('circle').onchange = e => { populate('division', divisionsByPair[`${get('zone').value}||${e.target.value}`]); };
   get('dependency').onchange = e => { populate('remBucket', remarksByDep[e.target.value]); populate('finBucket',[]); };
   get('remBucket').onchange = e => { populate('finBucket', finalsByPair[`${get('dependency').value}||${e.target.value}`]); };
-  get('meterNo').oninput = e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10); };
+  get('meterNo').oninput = e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,11); };
   get('consumerNo').oninput = e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,14); };
   get('btnSync').onclick = () => fetchOpts();
   
