@@ -150,7 +150,7 @@
     </div>
 
     <div style="margin-top: 40px;">
-      <!-- <div class="dash-btn" onclick="openForm('NEW')">
+       <!-- <div class="dash-btn" onclick="openForm('NEW')">
         <h3>✨ First Time Visit</h3>
         <p>New installation report. Checks for duplicates.</p>
       </div> -->
@@ -183,7 +183,6 @@
 
     <label>Consumer No. <span class="req">*</span></label><input id="consumerNo" type="text" maxlength="14" placeholder="e.g. J9839571901/9008914295">
     <div style="font-size:12px;color:#666;margin-top:4px;">Format: 1 Letters (A-Z) + 13 Digits</div>
-    <div id="dupWarning" style="color:red; font-size:12px; margin-top:5px; font-weight:bold;"></div>
     
     <div class="sec-title">Photos</div>
     
@@ -250,10 +249,10 @@
         </div>
 
         <label>Dependency <span class="req">*</span></label><select id="dependency"><option value="">Select</option></select>
-        <label>Category <span class="req">*</span></label><select id="remBucket" disabled><option value="">Select</option></select>
-        <label>Remark <span class="req">*</span></label><select id="finBucket" disabled><option value="">Select</option></select>
+        <label>Remark Bucket <span class="req">*</span></label><select id="remBucket" disabled><option value="">Select</option></select>
+        <label>Final Bucket <span class="req">*</span></label><select id="finBucket" disabled><option value="">Select</option></select>
 
-        <label>Closer Remark <span class="req">*</span></label><select id="rectStatus"><option value="">Select</option></select>
+        <label>Rectification Status <span class="req">*</span></label><select id="rectStatus"><option value="">Select</option></select>
         
         <div id="sec-vehicle-om" class="hidden" style="display: none;">
           <label>Vehicle use while O&M <span class="req">*</span></label>
@@ -572,22 +571,53 @@
 
   function unlockOMFlow() { if(currentMode === 'OM') get('om-flow-locked').classList.add('unlocked'); }
 
-  get('meterNo').onblur = async function() {
-    const m = this.value.trim(); const btn = get('btnSave'); get('dupWarning').textContent = ''; btn.disabled = false;
-    if (m.length < 5) return; 
-    if (currentMode === 'NEW') {
-      get('dupWarning').textContent = 'Checking availability...'; get('dupWarning').style.color = 'orange';
-      try {
-        const res = await callApi('checkMeter', { meterNo: m });
-        if (res.exists) {
-          const d = res.meta; btn.disabled = true;
-          get('dupWarning').textContent = '⚠️ Meter already visited. Submission blocked.'; get('dupWarning').style.color = 'red';
-          const html = `<div class="warn-box"><strong>Already Submitted By:</strong><br>Name: ${d.name}<br>Role: ${d.designation}<br><span style="color:#d93025; font-weight:bold;">Mobile: ${d.mobile}</span><br>Date: ${d.date}<br>Meter: ${d.meter}</div><p style="font-size:13px">Use <b>O&M Visit</b> if this is maintenance.</p>`;
-          modal('Duplicate Entry Detected', html);
-        } else { get('dupWarning').textContent = ''; }
-      } catch(e) {}
+  get('meterNo').onblur = async function(){
+  const m = this.value.trim();
+  const btn = get('btnSave');
+  const warn = get('dupWarning');
+  warn.textContent='';
+  btn.disabled=false;
+  if(m.length<5) return;
+  try{
+    warn.textContent='Checking meter...';
+    warn.style.color='orange';
+    const res = await callApi('checkMeter',{meterNo:m});
+    if(!res){
+      warn.textContent="Server error";
+      warn.style.color="red";
+      return;
     }
-  };
+    if(currentMode==="NEW"){
+      if(res.exists){
+        btn.disabled=true;
+        warn.textContent='⚠️ Meter already visited. Use O&M Visit.';
+        warn.style.color='red';
+        const d=res.meta;
+        modal("Duplicate Entry",
+        `Name: ${d.name}<br>
+         Mobile: ${d.mobile}<br>
+         Date: ${d.date}`);
+      }else{
+        warn.textContent='Meter is new. You can submit.';
+        warn.style.color='green';
+      }
+    }
+    if(currentMode==="OM"){
+      if(!res.exists){
+        btn.disabled=true;
+        warn.textContent="Meter not found. Do NEW visit first.";
+        warn.style.color="red";
+      }else{
+        warn.textContent="Meter found. O&M allowed.";
+        warn.style.color="green";
+      }
+    }
+  }catch(err){
+    console.error(err);
+    warn.textContent="Connection error";
+    warn.style.color="red";
+  }
+};
 
   function renderOMTable() {
     const tb = get('matTableBody'); tb.innerHTML = '';
