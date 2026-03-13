@@ -580,7 +580,53 @@ const MATERIAL_CONFIG = [
 
   function unlockOMFlow() { if(currentMode === 'OM') get('om-flow-locked').classList.add('unlocked'); }
 
-  
+    get('meterNo').onblur = async function(){
+  const m = this.value.trim();
+  const btn = get('btnSave');
+  const warn = get('dupWarning');
+  warn.textContent='';
+  btn.disabled=false;
+  if(m.length<5) return;
+  try{
+    warn.textContent='Checking meter...';
+    warn.style.color='orange';
+    const res = await callApi('checkMeter',{meterNo:m});
+    if(!res){
+      warn.textContent="Server error";
+      warn.style.color="red";
+      return;
+    }
+    if(currentMode==="NEW"){
+      if(res.exists){
+        btn.disabled=true;
+        warn.textContent='⚠️ Meter already visited. Use O&M Visit.';
+        warn.style.color='red';
+        const d=res.meta;
+        modal("Duplicate Entry",
+        `Name: ${d.name}<br>
+         Mobile: ${d.mobile}<br>
+         Date: ${d.date}`);
+      }else{
+        warn.textContent='Meter is new. You can submit.';
+        warn.style.color='green';
+      }
+    }
+    if(currentMode==="OM"){
+      if(!res.exists){
+        btn.disabled=true;
+        warn.textContent="Meter not found. Do NEW visit first.";
+        warn.style.color="red";
+      }else{
+        warn.textContent="Meter found. O&M allowed.";
+        warn.style.color="green";
+      }
+    }
+  }catch(err){
+    console.error(err);
+    warn.textContent="Connection error";
+    warn.style.color="red";
+  }
+};
 
   function renderOMTable() {
   const tb = get('matTableBody');
