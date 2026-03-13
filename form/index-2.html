@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Field Visit App v3.3</title>
+  <style>
+    /* --- CORE STYLES --- */
+    :root { --primary: #1a73e8; --bg: #f0f2f5; --card-bg: #ffffff; --text: #202124; --border: #80868b; --border-focus: #1a73e8; --err: #d93025; --ok: #188038; --warn: #f9ab00; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 16px; }
+    .container { max-width: 600px; margin: 0 auto; padding: 16px; min-height: 100vh; display: flex; flex-direction: column; }
+    .admin-container { max-width: 900px; margin: 0 auto; padding: 16px; width: 100%; } 
+    
+    .view-section { display: none; flex-grow: 1; }
+    .view-section.active { display: block; animation: fade 0.3s ease-out; }
+    @keyframes fade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .app-header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 16px; margin: -16px -16px 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+    .brand { font-size: 20px; font-weight: 800; color: var(--primary); }
+    .user-info { text-align: right; font-size: 13px; color: #5f6368; margin-right: 12px; }
+    .btn-logout { background: #fce8e6; color: var(--err); border: 1px solid #fad2cf; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+    .btn-nav-admin { background: #e8f0fe; color: var(--primary); border: 1px solid #d2e3fc; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right:10px; display:none; }
+    
+    .dash-btn { background: #fff; border: 1px solid #ddd; padding: 25px; border-radius: 12px; margin-bottom: 20px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.1s; }
+    .dash-btn:active { transform: scale(0.98); background: #f8f9fa; }
+    .dash-btn h3 { margin: 0 0 5px; color: var(--primary); }
+    .dash-btn p { margin: 0; color: #666; font-size: 13px; }
+
+    /* Form Elements */
+    .sec-title { margin: 30px 0 10px; font-size: 14px; font-weight: 700; color: var(--primary); text-transform: uppercase; border-bottom: 2px solid #e8f0fe; padding-bottom: 5px; }
+    label { display: block; margin: 15px 0 5px; font-weight: 600; font-size: 15px; }
+    .req { color: var(--err); }
+    input, select, textarea { width: 100%; padding: 14px; font-size: 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; appearance: none; color: #000; }
+    input:focus, select:focus, textarea:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(26,115,232,0.2); outline: none; }
+    select { background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23202124%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 10px; }
+    select:disabled { background-color: #e9ecef; color: #6c757d; }
+    textarea { resize: vertical; min-height: 80px; }
+    
+    .mat-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    .mat-table td { padding: 12px 8px; border-bottom: 1px solid #ddd; vertical-align: middle; }
+    .mat-check { width: 24px; height: 24px; cursor: pointer; accent-color: var(--primary); transform: scale(1.1); margin-right: 10px; }
+    tr.selected { background-color: #e8f0fe; }
+    .mat-inp { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .mat-composite { display: flex; gap: 8px; }
+    .mat-composite .mat-inp { flex-grow: 1; }
+    .mat-composite input[type="number"] { width: 90px; } 
+
+    .pass-wrap { position: relative; width: 100%; }
+    .pass-wrap input { padding-right: 45px; }
+    .pass-toggle { position: absolute; right: 0; top: 0; height: 100%; width: 45px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #666; font-size: 18px; user-select: none; }
+
+    .actions { margin-top: 30px; display: flex; flex-direction: column; gap: 12px; }
+    button.main { background: var(--primary); color: #fff; padding: 16px; border-radius: 50px; border: none; font-size: 18px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: opacity 0.2s; }
+    button.main:disabled { background: #ccc; cursor: not-allowed; opacity: 0.7; }
+    button.link { background: none; border: none; color: #5f6368; text-decoration: underline; cursor: pointer; padding: 10px; }
+    
+    .img-box { margin-top: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; text-align: center; display: none; background: #fff; }
+    .img-box.show { display: block; border-style: solid; border-color: var(--border); }
+    .img-box img { max-width: 100%; max-height: 250px; border-radius: 4px; }
+    
+    .msg { text-align: center; margin-top: 15px; font-weight: 500; min-height: 20px; }
+    .msg.err { color: var(--err); } .msg.ok { color: var(--ok); }
+    
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; place-items: center; z-index: 1000; padding: 20px; }
+    .modal-overlay.open { display: grid; }
+    .modal { background: #fff; padding: 25px; border-radius: 12px; width: 100%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .modal h3 { margin: 0 0 10px; }
+    .warn-box { background: #fff3e0; color: #e65100; padding: 10px; border-radius: 6px; font-size: 13px; margin: 10px 0; border: 1px solid #ffe0b2; }
+    .modal-btns { text-align: right; margin-top: 20px; }
+    .modal-btns button { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; margin-left: 10px; }
+    .btn-ok { background: var(--primary); color: #fff; }
+    .btn-cancel { background: #f0f0f0; color: #333; border: 1px solid #ccc; }
+    
+    .hidden { display: none !important; }
+    #om-flow-locked { opacity: 0.5; pointer-events: none; transition: opacity 0.3s; }
+    #om-flow-locked.unlocked { opacity: 1; pointer-events: auto; }
+
+    /* --- ADMIN PANEL SPECIFIC STYLES --- */
+    .admin-tools { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; }
+    .admin-box { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #ddd; }
+    .add-user-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end; }
+    .add-user-grid label { margin: 0 0 4px; font-size: 12px; }
+    .add-user-grid input, .add-user-grid select { padding: 8px; font-size: 14px; }
+    
+    .search-bar { display: flex; gap: 8px; flex-grow: 1; max-width: 400px; }
+    .search-bar input { padding: 8px 12px; font-size: 14px; }
+    .btn-small { padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; border: 1px solid #ccc; background: #f8f9fa; font-weight:600;}
+    .btn-primary { background: var(--primary); color: #fff; border:none; }
+    .btn-reset { background: #fff3e0; color: #e65100; border-color: #ffe0b2; }
+    
+    .admin-table-wrap { overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #ddd;}
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+    .admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .admin-table th { background: #f8f9fa; font-weight: 700; color: var(--primary); position: sticky; top: 0; z-index: 10; }
+    .admin-table tr:hover { background-color: #f8f9fa; }
+    
+    .toggle-status { padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer; text-align: center; border:none; width: 75px; font-size: 12px;}
+    .st-active { background: #e6f4ea; color: #137333; }
+    .st-inactive { background: #fce8e6; color: #c5221f; }
+    .role-select { padding: 4px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc; width: 85px;}
+    
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 15px; font-size: 14px; font-weight: 600; }
+    .pagination button { padding: 6px 12px; cursor: pointer; border-radius: 4px; border: 1px solid var(--primary); background: #fff; color: var(--primary); font-weight: bold; }
+    .pagination button:disabled { border-color: #ccc; color: #999; cursor: not-allowed; }
+
+    /* Meter Readings Sub-Grid */
+    .reading-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+
+<div id="main-container" class="container">
+  
+  <div id="view-login" class="view-section active">
+    <div style="margin: 60px 0 40px;"><h1>Welcome</h1><p style="color:#5f6368;">Log in to continue</p></div>
+    <label>Emp Code</label><input id="loginCode" type="text" placeholder="Enter ID (e.g. INTL123)">
+    <label>Password</label>
+    <div class="pass-wrap">
+      <input id="loginPass" type="password">
+      <span id="togglePass" class="pass-toggle">👁️</span>
+    </div>
+    <div class="actions">
+      <button class="main" id="btnLogin">LOGIN</button>
+      <button class="link" id="btnToReset">Change Password</button>
+    </div>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+
+  <div id="view-reset" class="view-section">
+    <div style="margin: 30px 0;"><h1>Change Password</h1></div>
+    <label>Emp Code</label><input id="resetCode" type="text">
+    <label>Old Password</label><input id="resetOld" type="password">
+    <label>New Password</label><input id="resetNew" type="password">
+    <div class="actions">
+      <button class="main" id="btnDoReset">UPDATE</button>
+      <button class="link" id="btnBackLogin">Back to Login</button>
+    </div>
+    <div id="resetMsg" class="msg"></div>
+  </div>
+
+  <div id="view-dashboard" class="view-section">
+    <div class="app-header">
+      <div class="brand">📋 Field Visit</div>
+      <div style="display:flex;align-items:center;">
+        <button id="btnNavAdminDash" class="btn-nav-admin" onclick="loadAdminPanel()">🛡️ Admin Control</button>
+        <div class="user-info"><div id="dName" style="font-weight:700;">User</div><div id="dCode">ID</div></div>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div style="margin-top: 40px;">
+       <!-- <div class="dash-btn" onclick="openForm('NEW')">
+        <h3>✨ First Time Visit</h3>
+        <p>New installation report. Checks for duplicates.</p>
+      </div> -->
+      
+      <div class="dash-btn" onclick="openForm('OM')">
+        <h3>🛠️ O&M Visit</h3>
+        <p>Maintenance, Rectification & Material Usage.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-form" class="view-section">
+    <div class="app-header">
+      <div class="brand" id="formTitle">Report</div>
+      <div style="display:flex;align-items:center;">
+         <button id="btnNavAdminForm" class="btn-nav-admin" onclick="loadAdminPanel()">🛡️ Admin Control</button>
+         <button onclick="show('view-dashboard')" class="link" style="font-size:13px; font-weight:bold;">Close</button>
+      </div>
+    </div>
+
+    <div class="sec-title">Location</div>
+    <label>Zone <span class="req">*</span></label><select id="zone"><option value="">Select</option></select>
+    <label>Circle <span class="req">*</span></label><select id="circle" disabled><option value="">Select</option></select>
+    <label>Division <span class="req">*</span></label><select id="division" disabled><option value="">Select</option></select>
+
+    <div class="sec-title">Details</div>
+    <label>Meter No. <span class="req">*</span></label><input id="meterNo" type="text" maxlength="11" placeholder="e.g. AL12345678">
+    <div style="font-size:12px;color:#666;margin-top:4px;">Format: 2 Letters (A-Z) + 7-8 Digits</div>
+    <div id="dupWarning" style="color:red; font-size:12px; margin-top:5px; font-weight:bold;"></div>
+
+    <label>Consumer No. <span class="req">*</span></label><input id="consumerNo" type="text" maxlength="14" placeholder="e.g. J9839571901/9008914295">
+    <div style="font-size:12px;color:#666;margin-top:4px;">Format: 1 Letters (A-Z) + 13 Digits</div>
+    
+    <div class="sec-title">Photos</div>
+    
+     <div id="img-sec-new">
+      <label>Meter Image <span class="req">*</span></label><input id="f_meter" type="file" accept="image/*" capture="environment"><div id="p_meter" class="img-box"><img id="i_meter"></div>
+      <label>With CT <span class="req">*</span></label><input id="f_ct" type="file" accept="image/*" capture="environment"><div id="p_ct" class="img-box"><img id="i_ct"></div>
+      <label>With DT & Cable <span class="req">*</span></label><input id="f_dt" type="file" accept="image/*" capture="environment"><div id="p_dt" class="img-box"><img id="i_dt"></div>
+    </div> 
+
+    <div id="img-sec-om-before" class="hidden">
+      <label style="color:var(--primary);">Step 1: Image Before O&M <span class="req">*</span></label>
+      <input id="f_before" type="file" accept="image/*" capture="environment">
+      <div id="p_before" class="img-box"><img id="i_before"></div>
+    </div>
+
+    <div id="om-flow-locked">
+        <div class="sec-title" style="border-bottom-color: var(--warn); color: #d96f00;">⚡ Meter Reading Details</div>
+        
+        <label>Is Meter Reading Available? <span class="req">*</span></label>
+        <select id="rdg_available">
+          <option value="">Select</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+        
+        <div id="sec-readings" class="hidden" style="margin-top:20px; padding:15px; border:1px solid #ddd; border-radius:8px; background:#fafafa;">
+            <div class="reading-grid">
+                <div>
+                   <label>KWH (Import) <span class="req">*</span></label>
+                   <input id="rdg_kwh" type="number" step="0.01" min="0" placeholder="XXXXXX.XX">
+                </div>
+                <div>
+                   <label>KVAH (Import) <span class="req">*</span></label>
+                   <input id="rdg_kvah" type="number" step="0.01" min="0" placeholder="XXXXXX.XX">
+                </div>
+                <div>
+                   <label>KW (MD) <span class="req">*</span></label>
+                   <input id="rdg_kw" type="number" step="0.001" min="0" placeholder="XXX.XXX">
+                </div>
+                <div>
+                   <label>KVA (MD) <span class="req">*</span></label>
+                   <input id="rdg_kva" type="number" step="0.001" min="0" placeholder="XXX.XXX">
+                </div>
+            </div>
+
+            <div style="margin-top: 15px;">
+               <label>KWH Image <span class="req">*</span></label><input id="f_img_kwh" type="file" accept="image/*" capture="environment"><div id="p_img_kwh" class="img-box"><img id="i_img_kwh"></div>
+               <label>KVAH Image <span class="req">*</span></label><input id="f_img_kvah" type="file" accept="image/*" capture="environment"><div id="p_img_kvah" class="img-box"><img id="i_img_kvah"></div>
+               <label>KW (MD) Image <span class="req">*</span></label><input id="f_img_kw" type="file" accept="image/*" capture="environment"><div id="p_img_kw" class="img-box"><img id="i_img_kw"></div>
+               <label>KVA (MD) Image <span class="req">*</span></label><input id="f_img_kva" type="file" accept="image/*" capture="environment"><div id="p_img_kva" class="img-box"><img id="i_img_kva"></div>
+            </div>
+        </div>
+        
+        <div class="sec-title" style="margin-top:40px;">Remarks & Data</div>
+        <label>Field Remark <span class="req">*</span></label><textarea id="fieldRemark" rows="1"></textarea>
+
+        <div id="sec-mat-req">
+           <label>Material Required <span class="req">*</span></label><textarea id="matReq" rows="1"></textarea>
+        </div>
+
+        <div id="sec-mat-used" class="hidden">
+           <div class="sec-title">Material Used<span class="req">*</span></div>
+           <table class="mat-table" id="matTableBody"></table>
+        </div>
+
+        <label>Dependency <span class="req">*</span></label><select id="dependency"><option value="">Select</option></select>
+        <label>Category <span class="req">*</span></label><select id="remBucket" disabled><option value="">Select</option></select>
+        <label>Remark <span class="req">*</span></label><select id="finBucket" disabled><option value="">Select</option></select>
+
+        <label>Closer Remark <span class="req">*</span></label><select id="rectStatus"><option value="">Select</option></select>
+        
+        <div id="sec-vehicle-om" class="hidden" style="display: none;">
+          <label>Vehicle use while O&M <span class="req">*</span></label>
+          <select id="vehicleOM"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+        </div>
+
+        <div id="sec-veh" style="display: none;">
+          <label>Vehicle Required <span class="req">*</span></label><select id="vehReq"><option value="">Select</option></select>
+        </div>
+        
+        <div id="img-sec-om-after" class="hidden" style="margin-top:20px; display: none;">
+          <label>Step 2: Image After O&M <span class="req">*</span></label>
+          <input id="f_after" type="file" accept="image/*" capture="environment">
+          <div id="p_after" class="img-box"><img id="i_after"></div>
+        </div>
+    </div>
+
+    <div class="actions">
+      <button class="main" id="btnSave">SUBMIT REPORT</button>
+      <button class="link" id="btnSync">Refresh Options</button>
+      <div id="formMsg" class="msg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="view-admin" class="view-section admin-container">
+  <div class="app-header" style="margin: -16px -16px 20px;">
+    <div class="brand">🛡️ Admin Control System</div>
+    <div style="display:flex;align-items:center;">
+      <button class="btn-small" onclick="show('view-dashboard')" style="background:#e8f0fe; border-color:#d2e3fc; color:#1a73e8; margin-right:15px; font-weight:bold;">📋 Go to Field App</button>
+      <div class="user-info"><div id="aName" style="font-weight:700;">Admin</div><div id="aCode">ID</div></div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  
+  <div class="admin-box">
+    <h4 style="margin:0 0 10px; color:var(--primary);">➕ Add New User</h4>
+    <div class="add-user-grid">
+      <div><label>User Name</label><input type="text" id="n_name" placeholder="Full Name"></div>
+      <div><label>Emp Code</label><input type="text" id="n_code" placeholder="e.g. INTL123"></div>
+      <div><label>Mobile No</label><input type="number" id="n_mob" placeholder="10 Digits"></div>
+      <div><label>Designation</label><input type="text" id="n_desig" placeholder="Role/Title"></div>
+      <div><label>Role</label><select id="n_role"><option value="User">User</option><option value="Admin">Admin</option></select></div>
+      <div><button class="btn-small btn-primary" style="width:100%; height:38px;" onclick="addNewUser()">Create User</button></div>
+    </div>
+    <div id="addMsg" class="msg" style="margin-top:5px; font-size:13px; text-align:left;"></div>
+  </div>
+
+  <div class="admin-tools">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search Name or Emp Code..." onkeypress="if(event.key==='Enter') execSearch()">
+      <button class="btn-small btn-primary" onclick="execSearch()">Search</button>
+      <button class="btn-small" onclick="clearSearch()">Clear</button>
+    </div>
+    <div id="adminMsg" class="msg" style="margin: 0; font-size:13px; font-weight:bold;"></div>
+  </div>
+
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Name / Designation</th>
+          <th>Emp Code</th>
+          <th>Mobile</th>
+          <th>Role Access</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="adminTableBody">
+        <tr><td colspan="6" style="text-align:center; padding: 20px;">Loading users...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  
+  <div class="pagination">
+    <button id="btnPrevPage" onclick="changePage(-1)">&#8592; Prev</button>
+    <span id="pageInfo">Page 1 of 1</span>
+    <button id="btnNextPage" onclick="changePage(1)">Next &#8594;</button>
+  </div>
+</div>
+
+<div id="modal" class="modal-overlay">
+  <div class="modal">
+    <h3 id="mTitle">Title</h3>
+    <div id="mBody"></div>
+    <div class="modal-btns">
+      <button id="mCancel" class="btn-cancel" style="display:none;">CANCEL</button>
+      <button id="mOk" class="btn-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // -------------------------------------------------------------
+  // UPDATE THIS URL WITH YOUR DEPLOYMENT URL
+  const API_URL = "https://script.google.com/macros/s/AKfycbyvKYZyPRFcMI07-ngASXikOZ-b7M0sYPt1PEqkKiHKybsIqWC7jxze8sNZVCwQiBYjNw/exec"; 
+  // -------------------------------------------------------------
+
+const MATERIAL_CONFIG = [
+  { id: 8, name: "Single Phase Smart Meter Installed", type: "DROPDOWN", options: ["Yes","No"] },
+  { id: 1, name: "3-Phase Smart Meter Installed", type: "DROPDOWN", options: ["Yes","No"] },
+  { id: 3, name: "3-Phase SMC Meter Box", type: "DROPDOWN", options: ["50/5A","100/5A","200/5A","400/5A","600/5A","800/5A","1000/5A"] },
+  { id: 4,
+    name: "Resin Type Current Transformer (CT)",
+    type: "DROPDOWN_PLUS_DROPDOWN_COUNT",
+    options: ["50/5A","100/5A","200/5A","400/5A","600/5A","800/5A","1000/5A"],
+    countOptions: ["1","2","3","4"],
+    subFields: [
+      { key: "resinType", label: "Resin Type Current", type: "TEXT" },
+      { key: "ctInfo", label: "CT Information", type: "TEXT" }
+    ] },
+  { id: 5, name: "Polycarbonate Meter Seal", type: "COUNT" },
+  { id: 6, name: "NIC Card (GPRS / RF)", type: "COUNT" },
+  { id: 7, name: "Others", type: "DROPDOWN", options: ["Incoming Cable Connected","Outgoing Cable Connected","PT Wire Connected","Screw Tight","Other"] }
+];
+
+  let currentUser = null;
+  let currentMode = 'NEW'; 
+  let circlesByZone={}, divisionsByPair={}, remarksByDep={}, finalsByPair={};
+  
+  const imgs = { meter:null, ct:null, dt:null, before:null, after:null, img_kwh:null, img_kvah:null, img_kw:null, img_kva:null };
+  
+  let adminState = { page: 1, limit: 20, search: '', totalPages: 1 };
+  
+  const get = id => document.getElementById(id);
+  const msg = (id,t,k) => { const e=get(id); e.textContent=t; e.className='msg '+(k||''); };
+
+  function show(id) { 
+    document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active')); 
+    get(id).classList.add('active'); 
+    
+    if(id === 'view-admin') {
+       get('main-container').style.display = 'none'; window.scrollTo(0,0);
+    } else {
+       get('main-container').style.display = 'flex'; window.scrollTo(0,0);
+    }
+    
+    if(currentUser && currentUser.role && currentUser.role.toLowerCase() === 'admin') {
+      get('btnNavAdminDash').style.display = 'block'; get('btnNavAdminForm').style.display = 'block';
+    } else {
+      get('btnNavAdminDash').style.display = 'none'; get('btnNavAdminForm').style.display = 'none';
+    }
+  }
+
+  async function callApi(action, data = {}) {
+    try {
+      const response = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: action, data: data }), headers: { "Content-Type": "text/plain;charset=utf-8" } });
+      return await response.json();
+    } catch (e) { throw new Error("Connection Failed"); }
+  }
+
+  function initAuth() {
+    const s = localStorage.getItem('fv_user');
+    if(s) { 
+      currentUser = JSON.parse(s); 
+      if(currentUser.role && currentUser.role.toLowerCase() === 'admin') { loadAdminPanel(); } 
+      else { loadDashboard(); }
+    } else { show('view-login'); }
+  }
+
+  function logout() { localStorage.removeItem('fv_user'); currentUser=null; show('view-login'); }
+
+  get('btnLogin').onclick = () => {
+    const c=get('loginCode').value.trim(), p=get('loginPass').value.trim();
+    if(!c||!p) return msg('loginMsg','Enter credentials','err');
+    msg('loginMsg','Verifying...');
+    callApi('login', { empCode: c, password: p }).then(res => {
+      if(res.success) { 
+        currentUser={empCode:res.empCode, name:res.name, role:res.role}; 
+        localStorage.setItem('fv_user',JSON.stringify(currentUser)); 
+        msg('loginMsg',''); 
+        if(currentUser.role.toLowerCase() === 'admin') loadAdminPanel(); else loadDashboard(); 
+      } else msg('loginMsg', res.message, 'err');
+    }).catch(e => msg('loginMsg', e.message, 'err'));
+  };
+
+  get('btnDoReset').onclick = () => {
+    const c=get('resetCode').value.trim(), o=get('resetOld').value.trim(), n=get('resetNew').value.trim();
+    if(!c||!o||!n) return msg('resetMsg','All fields required','err');
+    msg('resetMsg','Updating...');
+    callApi('changePassword', { empCode: c, oldPass: o, newPass: n }).then(res => {
+       if(res.success) msg('resetMsg','Password Updated Successfully!','ok'); else msg('resetMsg', res.message, 'err');
+    }).catch(e=>msg('resetMsg', e.message, 'err'));
+  }
+
+  get('btnBackLogin').onclick = () => show('view-login');
+  get('togglePass').onclick = () => { const ip=get('loginPass'); ip.type = ip.type==='password'?'text':'password'; };
+
+  function loadDashboard() {
+    get('dName').textContent = currentUser.name.split(' ')[0]; get('dCode').textContent = currentUser.empCode;
+    show('view-dashboard'); if(get('zone').options.length <= 1) fetchOpts(); 
+  }
+
+  /* =========================================================
+     ADMIN PANEL LOGIC 
+     ========================================================= */
+
+  function loadAdminPanel() {
+    show('view-admin');
+    get('aName').textContent = currentUser.name.split(' ')[0]; get('aCode').textContent = currentUser.empCode;
+    fetchAdminData();
+  }
+
+  function fetchAdminData() {
+    get('adminMsg').textContent = 'Loading...'; get('adminMsg').className = 'msg';
+    const payload = { adminCode: currentUser.empCode, page: adminState.page, limit: adminState.limit, search: adminState.search };
+    
+    callApi('getUsersPaginated', payload).then(res => {
+      if(res.success) {
+        adminState.totalPages = res.totalPages;
+        adminState.page = res.currentPage;
+        updatePaginationUI(res.totalRecords);
+        renderAdminTable(res.users);
+        msg('adminMsg','');
+      } else { msg('adminMsg', res.message, 'err'); }
+    }).catch(e => msg('adminMsg', e.message, 'err'));
+  }
+
+  function renderAdminTable(users) {
+    const tbody = get('adminTableBody'); tbody.innerHTML = '';
+    if (users.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No users found.</td></tr>'; return; }
+
+    users.forEach(u => {
+      const isActive = u.status.toLowerCase() === 'active';
+      const statusClass = isActive ? 'st-active' : 'st-inactive';
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="font-weight:600;">${u.name}<br><span style="font-weight:normal;color:#666;font-size:11px;">${u.designation}</span></td>
+        <td style="font-family:monospace;">${u.empCode}</td>
+        <td>${u.mobile || '-'}</td>
+        <td>
+          <select class="role-select" onchange="changeUserRole('${u.empCode}', this.value)">
+            <option value="Admin" ${u.role.toLowerCase()==='admin'?'selected':''}>Admin</option>
+            <option value="User" ${u.role.toLowerCase()==='user'?'selected':''}>User</option>
+          </select>
+        </td>
+        <td>
+          <button class="toggle-status ${statusClass}" onclick="toggleUserStatus('${u.empCode}', '${u.status}', this)">${u.status}</button>
+        </td>
+        <td>
+          <button class="btn-small btn-reset" onclick="resetUserPass('${u.empCode}', '${u.name}')">Reset Pass</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function updatePaginationUI(total) {
+    get('pageInfo').textContent = `Page ${adminState.page} of ${adminState.totalPages} (Total: ${total})`;
+    get('btnPrevPage').disabled = adminState.page <= 1;
+    get('btnNextPage').disabled = adminState.page >= adminState.totalPages;
+  }
+
+  function changePage(delta) {
+    const newPage = adminState.page + delta;
+    if(newPage >= 1 && newPage <= adminState.totalPages) {
+      adminState.page = newPage;
+      fetchAdminData();
+    }
+  }
+
+  function execSearch() { adminState.search = get('searchInput').value.trim(); adminState.page = 1; fetchAdminData(); }
+  function clearSearch() { get('searchInput').value = ''; adminState.search = ''; adminState.page = 1; fetchAdminData(); }
+
+  window.addNewUser = function() {
+    const p = { adminCode: currentUser.empCode, name: get('n_name').value.trim(), empCode: get('n_code').value.trim().toUpperCase(), mobile: get('n_mob').value.trim(), designation: get('n_desig').value.trim(), role: get('n_role').value };
+    if(!p.name || !p.empCode) return msg('addMsg','Name and Emp Code are required.','err');
+    
+    msg('addMsg','Creating user...', 'warn');
+    callApi('createUser', p).then(res => {
+      if(res.success) {
+        msg('addMsg', `Success: ${p.name} created.`, 'ok');
+        ['n_name','n_code','n_mob','n_desig'].forEach(id=>get(id).value=''); 
+        adminState.page = 1; adminState.search = ''; get('searchInput').value = ''; fetchAdminData();
+      } else { msg('addMsg', res.message, 'err'); }
+    }).catch(e => msg('addMsg', e.message, 'err'));
+  }
+
+  window.toggleUserStatus = function(empCode, currentStatus, btnElement) {
+    const newStatus = currentStatus.toLowerCase() === 'active' ? 'Inactive' : 'Active';
+    btnElement.textContent = '...';
+    callApi('updateUserStatus', { adminCode: currentUser.empCode, empCode: empCode, status: newStatus }).then(res => {
+      if(res.success) {
+        btnElement.textContent = newStatus; btnElement.className = `toggle-status ${newStatus==='Active'?'st-active':'st-inactive'}`;
+        btnElement.setAttribute('onclick', `toggleUserStatus('${empCode}', '${newStatus}', this)`);
+      } else { alert("Failed: " + res.message); btnElement.textContent = currentStatus; }
+    }).catch(e => { alert(e.message); btnElement.textContent = currentStatus; });
+  }
+
+  window.changeUserRole = function(empCode, newRole) {
+    callApi('updateUserRole', { adminCode: currentUser.empCode, empCode: empCode, role: newRole }).then(res => {
+      if(!res.success) alert("Failed to update role: " + res.message);
+    }).catch(e => alert(e.message));
+  }
+
+  window.resetUserPass = function(empCode, name) {
+    if(!confirm(`Reset password for ${name} to "Pass@123"?`)) return;
+    callApi('adminResetPassword', { adminCode: currentUser.empCode, empCode: empCode }).then(res => {
+      if(res.success) alert(`Password for ${name} reset successfully.`); else alert("Failed: " + res.message);
+    }).catch(e => alert(e.message));
+  }
+
+  /* =========================================================
+     FIELD VISIT FLOW
+     ========================================================= */
+
+  window.openForm = (mode) => {
+    currentMode = mode; resetForm(); get('formTitle').textContent = mode === 'NEW' ? 'New Visit' : 'O&M Visit';
+    const locker = get('om-flow-locked'); locker.classList.remove('unlocked');
+    if (mode === 'NEW') {
+      get('sec-mat-req').classList.remove('hidden'); get('sec-mat-used').classList.add('hidden');
+      get('img-sec-new').classList.remove('hidden'); get('img-sec-om-before').classList.add('hidden'); get('img-sec-om-after').classList.add('hidden');
+ 
+      locker.classList.add('unlocked');
+    } else {
+      locker.classList.remove('unlocked');
+      get('sec-mat-req').classList.add('hidden'); get('sec-mat-used').classList.remove('hidden');
+      get('img-sec-new').classList.add('hidden'); get('img-sec-om-before').classList.remove('hidden'); get('img-sec-om-after').classList.remove('hidden'); 
+       renderOMTable();
+    }
+    show('view-form');
+  };
+
+  function unlockOMFlow() { if(currentMode === 'OM') get('om-flow-locked').classList.add('unlocked'); }
+
+  get('meterNo').onblur = async function(){
+  const m = this.value.trim();
+  const btn = get('btnSave');
+  const warn = get('dupWarning');
+  warn.textContent='';
+  btn.disabled=false;
+  if(m.length<5) return;
+  try{
+    warn.textContent='Checking meter...';
+    warn.style.color='orange';
+    const res = await callApi('checkMeter',{meterNo:m});
+    if(!res){
+      warn.textContent="Server error";
+      warn.style.color="red";
+      return;
+    }
+    if(currentMode==="NEW"){
+      if(res.exists){
+        btn.disabled=true;
+        warn.textContent='⚠️ Meter already visited. Use O&M Visit.';
+        warn.style.color='red';
+        const d=res.meta;
+        modal("Duplicate Entry",
+        `Name: ${d.name}<br>
+         Mobile: ${d.mobile}<br>
+         Date: ${d.date}`);
+      }else{
+        warn.textContent='Meter is new. You can submit.';
+        warn.style.color='green';
+      }
+    }
+    if(currentMode==="OM"){
+      if(!res.exists){
+        btn.disabled=true;
+        warn.textContent="Meter not found. Do NEW visit first.";
+        warn.style.color="red";
+      }else{
+        warn.textContent="Meter found. O&M allowed.";
+        warn.style.color="green";
+      }
+    }
+  }catch(err){
+    console.error(err);
+    warn.textContent="Connection error";
+    warn.style.color="red";
+  }
+};
+
+  function renderOMTable() {
+  const tb = get('matTableBody');
+  tb.innerHTML = '';
+
+  MATERIAL_CONFIG.forEach((item) => {
+
+    let inputHtml = '';
+
+    if(item.type === 'COUNT'){
+      inputHtml = `<input type="number" class="mat-inp mat-val" placeholder="Qty" min="1">`;
+    }
+
+    else if(item.type === 'DROPDOWN'){ inputHtml = `<select class="mat-inp mat-val"><option value="">Select Option</option> ${item.options.map(o=>`<option>${o}</option>`).join('')}</select>`; }
+
+    else if(item.type === 'DROPDOWN_PLUS_DROPDOWN_COUNT'){
+      inputHtml = `<div class="mat-composite"><select class="mat-inp mat-val-drop"><option value="">Select Rating</option> ${item.options.map(o=>`<option>${o}</option>`).join('')}</select>
+        <select class="mat-inp mat-val-count"><option value="">Qty</option> ${item.countOptions.map(o=>`<option>${o}</option>`).join('')}</select></div>`;}
+
+    /* -------- ADD SUB FIELDS -------- */
+
+    let subFieldsHtml = '';
+    if(item.subFields){
+      subFieldsHtml = item.subFields.map(sf => `
+        <div style="margin-top:8px;"><label style="font-size:12px;">${sf.label}</label><input type="text" class="mat-inp mat-sub-${sf.key}" placeholder="${sf.label}"></div>`).join('');
+    }
+
+    const row = `
+    <tr data-id="${item.id}" data-type="${item.type}" data-name="${item.name}"><td width="40" style="text-align:center;"><input type="checkbox" class="mat-check"></td><td>
+    <div style="font-weight:600;margin-bottom:6px;"> ${item.name}</div>
+
+    <div class="mat-ctrl" style="display:none;"> ${inputHtml} ${subFieldsHtml}</div>
+     </td>
+    </tr>`;
+    tb.insertAdjacentHTML('beforeend', row);});
+
+  tb.querySelectorAll('.mat-check').forEach(ck=>{
+    ck.onchange = (e)=>{
+      const tr = e.target.closest('tr');
+      const ctrl = tr.querySelector('.mat-ctrl');
+
+      if(e.target.checked){
+        ctrl.style.display = 'block';
+        tr.classList.add('selected');
+      }else{
+        ctrl.style.display = 'none';
+        tr.classList.remove('selected');
+        tr.querySelectorAll('input,select').forEach(el=>el.value='');
+      }
+
+      if(tr.dataset.name === "3-Phase SMC Meter Box"){
+        handleSMCLogic(e.target.checked);
+      }
+    }
+  });
+}
+
+  function handleSMCLogic(isChecked) {
+    if (!isChecked) return; 
+    const rows = document.querySelectorAll('#matTableBody tr');
+    rows.forEach(tr => { if(tr.dataset.name === "3-Phase Smart Meter Installed") { const ck = tr.querySelector('.mat-check'); if(!ck.checked) { ck.checked = true; ck.dispatchEvent(new Event('change')); } tr.querySelector('.mat-val').value = "Yes"; } });
+    rows.forEach(tr => { if(tr.dataset.name === "Resin Type Current Transformer (CT)") { const ck = tr.querySelector('.mat-check'); if(!ck.checked) { ck.checked = true; ck.dispatchEvent(new Event('change')); } tr.querySelector('.mat-val-count').value = "4"; } });
+  }
+
+  function getOMData() {
+    const list = []; let err = null;
+    document.querySelectorAll('#matTableBody tr').forEach(tr => {
+      const ck = tr.querySelector('.mat-check');
+      if(ck.checked) {
+        const type = tr.dataset.type, name = tr.dataset.name; let obj = { name: name, type: type };
+        if (type === 'DROPDOWN_PLUS_DROPDOWN_COUNT') {
+           const rating = tr.querySelector('.mat-val-drop').value, count = tr.querySelector('.mat-val-count').value;
+           if (!rating || !count) { err = `Please select Rating AND Count for ${name}`; return; }
+           obj.rating = rating; obj.count = count;
+        } else {
+           const valEl = tr.querySelector('.mat-val'), val = valEl.value.trim();
+           if(!val || (type==='COUNT' && val<=0)) { err = `Please complete details for ${name}`; return; }
+           if(type==='COUNT') obj.count = val; else if(type==='DROPDOWN') { obj.rating = val; obj.count = 1; }
+        }
+        list.push(obj);
+      }
+    });
+    if(err) return { error: err }; return { data: list };
+  }
+
+  function fetchOpts() {
+    callApi('getOptions').then(r => {
+      circlesByZone=r.circlesByZone; divisionsByPair=r.divisionsByPair; remarksByDep=r.remarksByDep; finalsByPair=r.finalsByPair;
+      populate('zone', r.zones); populate('dependency', r.dependencies); populate('rectStatus', r.rectStatuses); populate('vehReq', r.vehicleOptions);
+    });
+  }
+  function populate(id, list) { const el = get(id); el.innerHTML = '<option value="">Select</option>' + (list||[]).map(v=>`<option>${v}</option>`).join(''); el.disabled = !list || !list.length; }
+  
+  get('zone').onchange = e => { populate('circle', circlesByZone[e.target.value]); populate('division',[]); };
+  get('circle').onchange = e => { populate('division', divisionsByPair[`${get('zone').value}||${e.target.value}`]); };
+  get('dependency').onchange = e => { populate('remBucket', remarksByDep[e.target.value]); populate('finBucket',[]); };
+  get('remBucket').onchange = e => { populate('finBucket', finalsByPair[`${get('dependency').value}||${e.target.value}`]); };
+  get('meterNo').oninput = e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,11); };
+  get('consumerNo').oninput = e => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,14); };
+  get('btnSync').onclick = () => fetchOpts();
+  
+  function handleImg(e, k) {
+    const f = e.target.files[0]; if(!f) { imgs[k]=null; get('p_'+k).classList.remove('show'); return; }
+    const r = new FileReader();
+    r.onload = ev => {
+      get('i_'+k).src = ev.target.result; get('p_'+k).classList.add('show');
+      const i = new Image();
+      i.onload = () => {
+        const c = document.createElement('canvas'); const sc = Math.min(1000/i.width, 1000/i.height, 1);
+        c.width=i.width*sc; c.height=i.height*sc; c.getContext('2d').drawImage(i,0,0,c.width,c.height);
+        imgs[k] = c.toDataURL('image/jpeg',0.6).split(',')[1];
+        if(k === 'before') unlockOMFlow();
+      }; i.src = ev.target.result;
+    }; r.readAsDataURL(f);
+  }
+  
+  get('f_meter').onchange = e => handleImg(e,'meter'); get('f_ct').onchange = e => handleImg(e,'ct'); get('f_dt').onchange = e => handleImg(e,'dt');
+  get('f_before').onchange = e => handleImg(e,'before');
+  
+  get('f_img_kwh').onchange = e => handleImg(e,'img_kwh');
+  get('f_img_kvah').onchange = e => handleImg(e,'img_kvah');
+  get('f_img_kw').onchange = e => handleImg(e,'img_kw');
+  get('f_img_kva').onchange = e => handleImg(e,'img_kva');
+
+  // NEW: Reading Available Toggle Logic
+  get('rdg_available').onchange = (e) => {
+      if (e.target.value === 'Yes') {
+        get('sec-readings').classList.remove('hidden');
+      } else {
+        get('sec-readings').classList.add('hidden');
+      }
+  };
+
+  const setLoading = (busy) => {
+    const btn = get('btnSave');
+    if (busy) { btn.disabled = true; btn.textContent = 'Processing...'; btn.style.opacity = '0.7'; } 
+    else { btn.disabled = false; btn.textContent = 'SUBMIT REPORT'; btn.style.opacity = '1'; }
+  };
+
+  function generateUUID() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); }
+
+  get('btnSave').onclick = async () => {
+    if (get('btnSave').disabled) return;
+    const val = id => get(id).value.trim();
+    
+    const rdgAvail = val('rdg_available');
+    if (!rdgAvail) return msg('formMsg', 'Please select if Meter Reading is available.', 'err');
+
+    let kwh=0, kvah=0, kw=0, kva=0;
+    let img_kwh=null, img_kvah=null, img_kw=null, img_kva=null;
+
+    if (rdgAvail === 'Yes') {
+      kwh = parseFloat(val('rdg_kwh')); kvah = parseFloat(val('rdg_kvah'));
+      kw = parseFloat(val('rdg_kw')); kva = parseFloat(val('rdg_kva'));
+      
+      if(isNaN(kwh) || isNaN(kvah) || isNaN(kw) || isNaN(kva) || kwh<0 || kvah<0 || kw<0 || kva<0) {
+         return msg('formMsg','All 4 Meter Readings must be valid non-negative numbers.','err');
+      }
+      if(!imgs.img_kwh || !imgs.img_kvah || !imgs.img_kw || !imgs.img_kva) {
+         return msg('formMsg','All 4 Meter Reading Images are required when reading is available.','err');
+      }
+      
+      img_kwh = imgs.img_kwh; img_kvah = imgs.img_kvah; img_kw = imgs.img_kw; img_kva = imgs.img_kva;
+    }
+
+    const p = { 
+      empCode: currentUser.empCode, zone:val('zone'), circle:val('circle'), division:val('division'), meterNo:val('meterNo'),consumerNo:val('consumerNo'), 
+      fieldRemark:val('fieldRemark'), dependency:val('dependency'), remarkBucket:val('remBucket'), finalBucket:val('finBucket'), rectStatus:val('rectStatus'),
+      meterReadingAvailable: rdgAvail, kwh: kwh.toFixed(2), kvah: kvah.toFixed(2), kw: kw.toFixed(3), kva: kva.toFixed(3),
+      imageBase64_kwh: img_kwh, imageBase64_kvah: img_kvah, imageBase64_kw: img_kw, imageBase64_kva: img_kva
+    };
+    
+    p.requestId = generateUUID();
+
+    if(!p.zone || !p.circle || !p.division || !p.meterNo ||!p.consumerNo || !p.dependency || !p.rectStatus) return msg('formMsg','Missing selections','err');
+    if(!p.fieldRemark) return msg('formMsg','Field Remark is required','err');
+    if(!/^[A-Z]{2}[0-9]{7,8}$/.test(p.meterNo)) return modal('Error','Invalid Meter No format');
+
+    let action = ''; setLoading(true);
+
+    if (currentMode === 'NEW') {
+      action = 'submitFinal'; p.vehicleRequired = val('vehReq'); p.materialRequired = val('matReq');
+      if(!p.materialRequired) { setLoading(false); return msg('formMsg','Material Req is required','err'); }
+      if(!imgs.meter || !imgs.ct || !imgs.dt) { setLoading(false); return msg('formMsg','3 Photos Required','err'); }
+      p.imageBase64_meter = imgs.meter; p.imageBase64_ct = imgs.ct; p.imageBase64_dtcable = imgs.dt;
+      submitPayload(action, p);
+    } else { 
+      action = 'submitOM'; const matRes = getOMData();
+      if(matRes.error) { setLoading(false); return msg('formMsg', matRes.error, 'err'); }
+      if(matRes.data.length === 0) { setLoading(false); return modal('Validation Error', 'You must select at least one material used.'); }
+      p.materialData = matRes.data;
+      if(!imgs.before ) { setLoading(false); return msg('formMsg','Before Photos Required','err'); }
+      p.imageBase64_before = imgs.before; p.imageBase64_after = imgs.after;
+
+      msg('formMsg', 'Checking history...');
+      try {
+        const hist = await callApi('checkOMHistory', { meterNo: p.meterNo });
+        if (hist.count > 0) {
+          const d = hist.lastMeta; const nextVisit = hist.count + 1;
+          const html = `<div class="warn-box" style="border:1px solid #f9ab00; background:#fff8e1;"><strong>Already O&M done ${hist.count} times.</strong><br><br><strong>Last Visited By:</strong><br>Name: ${d.name}<br>Role: ${d.designation}<br>Mobile: ${d.mobile}<br>Date: ${d.date}</div><p style="font-weight:600; margin-top:10px;">This will be the <span style="color:#1a73e8;font-size:18px;">${nextVisit}th</span> Visit.</p><p>Please confirm submission.</p>`;
+          modal('Repeat Visit Confirmation', html, true, () => { submitPayload(action, p); }, () => { setLoading(false); });
+          msg('formMsg', ''); 
+        } else { submitPayload(action, p); }
+      } catch (e) { setLoading(false); msg('formMsg', 'Error checking history: ' + e.message, 'err'); }
+    }
+  };
+
+  function submitPayload(action, p) {
+    msg('formMsg','Saving Report...');
+    callApi(action, p).then(res => {
+      if(res.ok) { msg('formMsg',''); resetForm(); show('view-dashboard'); modal('Success', res.message); } 
+      else { setLoading(false); msg('formMsg', res.message || 'Error', 'err'); modal('Validation Error', res.message); }
+    }).catch(e => { setLoading(false); msg('formMsg', e.message, 'err'); });
+  }
+
+  function resetForm() {
+    ['meterNo','consumerNo','fieldRemark','matReq','rdg_kwh','rdg_kvah','rdg_kw','rdg_kva','rdg_available'].forEach(id=>get(id).value='');
+    ['zone','dependency','rectStatus','vehReq'].forEach(id=>get(id).selectedIndex=0);
+    
+    get('sec-readings').classList.add('hidden'); // Default hide readings on reset
+    get('zone').dispatchEvent(new Event('change'));
+    
+    document.querySelectorAll('.img-box').forEach(d => d.classList.remove('show'));
+    document.querySelectorAll('input[type="file"]').forEach(i => i.value='');
+    Object.keys(imgs).forEach(k => imgs[k] = null);
+    
+    setLoading(false); get('dupWarning').textContent = ''; get('om-flow-locked').classList.remove('unlocked'); window.scrollTo(0,0);
+  }
+
+  function modal(t, tx, showCancel=false, onConfirm=null, onCancel=null) { 
+    get('mTitle').textContent=t; get('mBody').innerHTML=tx; const btnCancel = get('mCancel'); const btnOk = get('mOk');
+    if(showCancel) {
+      btnCancel.style.display = 'inline-block'; btnCancel.onclick = () => { get('modal').classList.remove('open'); if(onCancel) onCancel(); };
+      btnOk.textContent = 'CONFIRM & SUBMIT'; btnOk.onclick = () => { get('modal').classList.remove('open'); if(onConfirm) onConfirm(); };
+    } else {
+      btnCancel.style.display = 'none'; btnOk.textContent = 'OK'; btnOk.onclick = () => get('modal').classList.remove('open');
+    }
+    get('modal').classList.add('open'); 
+  }
+  
+  get('btnToReset').onclick = () => show('view-reset');
+  initAuth();
+</script>
+</body>
+</html>
